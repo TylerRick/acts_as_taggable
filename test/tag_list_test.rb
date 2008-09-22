@@ -96,6 +96,24 @@ class TagListTest < Test::Unit::TestCase
     assert_equal %w(Two), tag_list.remove("One")
     assert_equal %w(), tag_list.remove(["Two"])
   end
+
+  def test_subtract
+    tag_list = TagList.new("One", "Two")
+    assert_equal TagList, (tag_list - ["One"]).class
+    assert_equal %w(Two), tag_list - TagList.from("One")
+    assert_equal %w(Two), tag_list - ["One"] # Accepts normal arrays as well as TagList objects
+    assert_equal %w(One Two), tag_list  # Remains unchanged
+  end
+
+  def test_subtract_is_case_insensitive
+    tag_list = TagList.new("One", "Two")
+    assert_equal %w(Two), tag_list - ["one"]
+  end
+
+  def test_subtract_normalizes_names
+    tag_list = TagList.new("One", "Two")
+    assert_equal %w(Two), tag_list - ["  one\n\t"]
+  end
   
   def test_new_with_parsing
     assert_equal %w(One Two), TagList.new("One, Two", :parse => true)

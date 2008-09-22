@@ -224,7 +224,7 @@ class ActsAsTaggableOnSteroidsTest < Test::Unit::TestCase
     original_tag_names = photos(:jonathan_questioning_dog).tag_list
     photos(:jonathan_questioning_dog).update_attributes!(:tag_list => photos(:jonathan_questioning_dog).tag_list.to_s.upcase)
     
-    # The new tag list is not uppercase becuase the AR finders are not case-sensitive
+    # The new tag list is not uppercase because the AR finders are not case-sensitive
     # and find the old tags when re-tagging with the uppercase tags.
     assert_equivalent original_tag_names, photos(:jonathan_questioning_dog).reload.tag_list
   end
@@ -344,6 +344,23 @@ class ActsAsTaggableOnSteroidsTest < Test::Unit::TestCase
     end
     
     assert_equal Post.find_tagged_with("Nature"), Post.find_tagged_with("nature")
+
+    # Make sure it is case insensitive here and doesn't try to add the same (case insensitive) tag twice.
+    post = Post.create!(:text => 'Text', :tag_list => "economics")
+    assert_nothing_raised { post.update_attributes(:text => 'Text', :tag_list => "economics, Economics"); post.save! }
+    assert_equal ["economics"], post.reload.tag_list
+
+    post = nil
+    assert_nothing_raised { post = Post.create!(:text => 'Text', :tag_list => "a, A") }
+    assert_equal ["a"], post.reload.tag_list
+  end
+
+  def test_should_not_allow_taggings_with_the_same_tag_id_and_taggable_id
+    post = Post.create!(:text => "Test", :tag_list => "economics")
+    tagging = post.taggings.first
+    duplicate_tagging = Tagging.create(:tag_id => tagging.tag_id, :taggable_id => tagging.taggable_id, :taggable_type => "Post")
+    assert_match /already/, duplicate_tagging.errors.on(:tag_id)
+    assert_equal 1, Tagging.find_all_by_tag_id_and_taggable_id(tagging.tag_id, tagging.taggable_id).size
   end
   
   def test_tag_not_destroyed_when_unused

@@ -141,6 +141,35 @@ used to tag any objects. Defaults to false.
 
   Tag.destroy_unused = true
 
-=== Other
+=== How case insensitive is it?
 
-Problems, comments, and suggestions all welcome. jonathan.viney@gmail.com  
+When a tag is first created, will it will be saved with the exact name (including case) that is provided.
+
+After that, however, the tag will be searched for and compared insensitively. If you try to add the same tag but with different case, it will not
+change the case; it will add it with the original case. (So make sure you enter it correctly to begin with, or provide a way to rename tags.
+But be aware that renaming it for one user will rename it for all users.)
+
+irb -> run.tag_list = 'l'
+
+irb -> run.save_tags; run.reload.tag_list
+    => ["l"]
+
+# Case insensitive -- will detect that you've already 'L' (even though it's spelled 'l')
+# Once a tag is created, its case will never change simply by people adding/removing the tag with different spellings.
+irb -> run.tag_list = 'L'
+
+irb -> run.save_tags; run.reload.tag_list
+    => ["l"]
+
+# You'd have to explicitly update its name to change its case...
+irb -> Tag.find_by_name('l').update_attribute :name, 'L'
+    => true
+
+# Case insensitive; can still be found with 'l'
+irb -> Tag.find_by_name('l')
+    => #<Tag id: 6, name: "L">
+
+=== Contributing
+
+Pull requests welcome at http://github.com/TylerRick/acts_as_taggable_on_steroids/tree/master
+

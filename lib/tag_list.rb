@@ -1,3 +1,4 @@
+require 'tag'
 class TagList < Array
   cattr_accessor :delimiter
   self.delimiter = ','
@@ -15,7 +16,12 @@ class TagList < Array
   #   tag_list.add("Fun, Happy", :parse => true)
   def add(*names)
     extract_and_apply_options!(names)
-    concat(names)
+
+    # Prevent it from adding duplicate (in the case-insensitive sense) taggings for, say, 'a' and 'A'. (Could just normalize all names in clean! but that would prevent users from using mixed case in their names; it would convert all names to lower case prior to saving.)
+    names.each {|name| 
+      self << name unless self.map(&:strip).map(&:downcase).index(name.strip.downcase)
+    } 
+
     clean!
     self
   end
@@ -29,8 +35,15 @@ class TagList < Array
   #   tag_list.remove("Sad, Lonely", :parse => true)
   def remove(*names)
     extract_and_apply_options!(names)
-    delete_if { |name| names.include?(name) }
+    delete_if { |name| 
+      names.map {|s| Tag.normalize_name(s) }.
+           include?( Tag.normalize_name(name) )
+    }
     self
+  end
+
+  def -(other)
+    dup.remove(other)
   end
   
   # Toggle the presence of the given tags.
@@ -64,6 +77,7 @@ class TagList < Array
   def clean!
     reject!(&:blank?)
     map!(&:strip)
+    #map! {|name| Tag.normalize_name(name)}
     uniq!
   end
   
@@ -93,6 +107,7 @@ class TagList < Array
             string = source.to_s.dup
             
             # Parse the quoted tags
+            # This looks for tags that are enclosed in quotes (' or ") and adds each one found (without the quotes) to tag_list
             [
               /\s*#{delimiter}\s*(['"])(.*?)\1\s*/,
               /^\s*(['"])(.*?)\1\s*#{delimiter}?/

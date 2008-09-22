@@ -169,16 +169,33 @@ module ActiveRecord #:nodoc:
         def save_tags
           return unless @tag_list
           
-          new_tag_names = @tag_list - tags.map(&:name)
-          old_tags = tags.reject { |tag| @tag_list.include?(tag.name) }
+          old_tag_list   = tags.map(&:name)
+          tags_to_add    = @tag_list - old_tag_list
+          tags_to_delete = tags.reject { |tag| @tag_list.map(&:downcase).include?(tag.name.downcase) }
+
+          (
+            puts "tags currently in association: #{old_tag_list.inspect}"
+            puts "@tag_list: #{@tag_list.inspect}"
+            puts "tags_to_add: #{tags_to_add.inspect}"
+            puts "tags_to_delete: #{tags_to_delete.map(&:name).inspect}"
+          ) if $debug_save_tags
           
           self.class.transaction do
-            if old_tags.any?
-              taggings.find(:all, :conditions => ["tag_id IN (?)", old_tags.map(&:id)]).each(&:destroy)
+            if tags_to_delete.any?
+              taggings.find(:all, :conditions => ["tag_id IN (?)", tags_to_delete.map(&:id)]).each(&:destroy)
               taggings.reset
             end
             
-            new_tag_names.each do |new_tag_name|
+            tags_to_add.each do |new_tag_name|
+              # It is possible that this will attempt to create a duplicate tagging record, since
+              # has_many :through associations don't do any checking to make sure there isn't already an
+              # association.
+              # We could add a skip_duplicates option like has_many_polymorphs and actually do a check:
+              #   next if @reflection.options[:skip_duplicates] and @target.include? record
+              # prior to the <<, but theoretically no duplicates should be created IF you use the
+              # interfaces provided for adding taggings (tag_list=, tag_list.add, ...) rather than
+              # manually creating Tagging records (such that we don't know about them here and fail
+              # to detect that the tagging already exists).
               tags << Tag.find_or_create_with_like_by_name(new_tag_name)
             end
           end

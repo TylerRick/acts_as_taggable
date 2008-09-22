@@ -13,7 +13,7 @@ class Tag < ActiveRecord::Base
   end
   
   def ==(object)
-    super || (object.is_a?(Tag) && name == object.name)
+    super || (object.is_a?(Tag) && name.downcase == object.name.downcase)
   end
   
   def to_s
@@ -67,5 +67,9 @@ class Tag < ActiveRecord::Base
         :group      => group_by
       }.update(options)
     end
+  end
+
+  def self.normalize_name(name)
+    name.strip.downcase
   end
 end
